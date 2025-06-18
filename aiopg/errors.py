@@ -1,0 +1,2 @@
+class RowNotFoundError(Exception):
+    pass
