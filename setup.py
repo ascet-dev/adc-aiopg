@@ -35,7 +35,7 @@ setup(
     description='Async PostgreSQL client with connection pooling',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
-    packages=get_packages('aiopg'),
+    packages=get_packages('adc_aiopg'),
     include_package_data=True,
     data_files=[('', [])],
     classifiers=[

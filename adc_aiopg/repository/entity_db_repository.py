@@ -3,9 +3,9 @@ from uuid import UUID
 from pydantic import BaseModel
 from asyncpg import Pool
 
-from aiopg.types import Pagination, PaginatedResponse
-from aiopg.errors import RowNotFoundError
-from aiopg.query import create, get_by_id, search, update_by_id, update, count, delete_by_id, delete
+from adc_aiopg.types import Pagination, PaginatedResponse
+from adc_aiopg.errors import RowNotFoundError
+from adc_aiopg.query import create, get_by_id, search, update_by_id, update, count, delete_by_id, delete
 from .db_repository import PGPoolManager
 
 T = TypeVar('T', bound=BaseModel)

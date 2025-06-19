@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from asyncpg import Connection, Pool
-from aiopg.query import compile_query
+from adc_aiopg.query import compile_query
 
 
 class PGPoolManager:
