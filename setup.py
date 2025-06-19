@@ -25,8 +25,11 @@ setup(
     url='https://github.com/ascet-dev/adc-aiopg',
     python_requires='>=3.8',
     install_requires=[
-        'psycopg2-binary>=2.9.0',
+        'pydantic>=2.0.0',
         'asyncpg>=0.27.0',
+        'alembic>=1.11.0',
+        'sqlalchemy>=2.0.0',
+        'sqlmodel>=0.0.8',
     ],
     license='MIT',
     description='Async PostgreSQL client with connection pooling',
