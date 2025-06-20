@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from typing import List, Mapping
+from typing import List
 
 
 class Pagination:
@@ -8,6 +7,6 @@ class Pagination:
     total: int
 
 
-class PaginatedResponse:
-    items: List[Mapping]
+class PaginatedResponse[T]:
+    items: List[T]
     pagination: Pagination
