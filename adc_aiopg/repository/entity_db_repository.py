@@ -3,7 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel
 from asyncpg import Pool
 
-from adc_aiopg.types import Pagination, PaginatedResponse
+from adc_aiopg.types import Pagination, Paginated
 from adc_aiopg.errors import RowNotFoundError
 from adc_aiopg.query import create, get_by_id, search, update_by_id, update, count, delete_by_id, delete
 from .db_repository import PGPoolManager
@@ -132,11 +132,11 @@ class PGDataAccessObject[T](PGPoolManager):
         limit: Optional[int] = None,
         offset: int = 0,
         **filters,
-    ) -> PaginatedResponse[T]:
+    ) -> Paginated[T]:
         rows = await self.search(order_by, limit, offset, **filters)
         total = await self.count(**filters)
 
-        return PaginatedResponse[self.model](
+        return Paginated[self.model](
             items=rows,
             pagination=Pagination(
                 limit=limit,

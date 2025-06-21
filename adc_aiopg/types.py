@@ -40,6 +40,6 @@ class Pagination(Base):
     offset: t.Optional[int] = Field(default=0)
 
 
-class PaginatedResponse[T](Base):
+class Paginated[T](Base):
     items: List[T]
     pagination: Pagination
