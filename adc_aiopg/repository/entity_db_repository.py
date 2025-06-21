@@ -12,7 +12,7 @@ T = TypeVar('T', bound=BaseModel)
 
 
 class PGDataAccessObject[T](PGPoolManager):
-    def __init__(self, model: T, db_pool: Pool, entity_versions: T | None = None):
+    def __init__(self, model: type[T], db_pool: Pool, entity_versions: type[T] | None = None):
         self.model = model
         self.entity_versions = entity_versions
         super().__init__(db_pool)

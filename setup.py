@@ -30,6 +30,7 @@ setup(
         'alembic>=1.11.0',
         'sqlalchemy>=2.0.0',
         'sqlmodel>=0.0.8',
+        'ujson>=5.10.0'
     ],
     license='MIT',
     description='Async PostgreSQL client with connection pooling',
