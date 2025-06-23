@@ -1,18 +1,18 @@
-from typing import Optional, Union, Mapping, List, TypeVar
+from typing import Optional, Union, Mapping, List, TypeVar, Generic, Type
 from uuid import UUID
-from pydantic import BaseModel
+
 from asyncpg import Pool
 
-from adc_aiopg.types import Pagination, Paginated
 from adc_aiopg.errors import RowNotFoundError
 from adc_aiopg.query import create, get_by_id, search, update_by_id, update, count, delete_by_id, delete
+from adc_aiopg.types import Pagination, Paginated, Base
 from .db_repository import PGPoolManager
 
-T = TypeVar('T', bound=BaseModel)
+T = TypeVar('T', bound=Base)
 
 
-class PGDataAccessObject[T](PGPoolManager):
-    def __init__(self, model: type[T], db_pool: Pool, entity_versions: type[T] | None = None):
+class PGDataAccessObject(PGPoolManager, Generic[T]):
+    def __init__(self, model: Type[T], db_pool: Pool, entity_versions: Type[T] | None = None):
         self.model = model
         self.entity_versions = entity_versions
         super().__init__(db_pool)
