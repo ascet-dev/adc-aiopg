@@ -1,14 +1,13 @@
 import typing as t
 from typing import List
 
-from pydantic import Field
-from pydantic import create_model
+from pydantic import Field, create_model
 from sqlmodel import SQLModel
 
 T = t.TypeVar('T', bound='Base')
 
 
-class Base(SQLModel, t.Generic[T]):
+class Base(SQLModel):
     @classmethod
     def partial(cls: t.Type[T]) -> t.Type[T]:
         fields = {k: (v.annotation, v) for k, v in cls.model_fields.items()}
@@ -40,6 +39,9 @@ class Pagination(Base):
     offset: t.Optional[int] = Field(default=0)
 
 
-class Paginated(Base, t.Generic[T]):
-    items: List[T]
+B = t.TypeVar('B', bound=Base)
+
+
+class Paginated[B](Base):
+    items: List[B]
     pagination: Pagination
