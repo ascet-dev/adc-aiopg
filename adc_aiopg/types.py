@@ -1,7 +1,7 @@
 import typing as t
-from typing import List
+from typing import List, Generic
 
-from pydantic import Field, create_model
+from pydantic import Field, create_model, BaseModel
 from sqlmodel import SQLModel
 
 T = t.TypeVar('T', bound='Base')
@@ -42,6 +42,6 @@ class Pagination(Base):
 B = t.TypeVar('B', bound=Base)
 
 
-class Paginated[B](Base):
+class Paginated(BaseModel, Generic[B]):
     items: List[B]
     pagination: Pagination
