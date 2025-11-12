@@ -108,3 +108,6 @@ venv.bak/
 
 # directory for temp-files
 tmp/
+
+# PyPI credentials
+.pypirc
