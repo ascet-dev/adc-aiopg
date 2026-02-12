@@ -21,7 +21,7 @@ def get_packages(package):
 
 setup(
     name="adc-aiopg",
-    version="0.1.0",
+    version="0.2.0",
     url="https://github.com/ascet-dev/adc-aiopg",
     python_requires=">=3.8",
     install_requires=[

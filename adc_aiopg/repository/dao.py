@@ -35,7 +35,7 @@ class DAOMeta(type):
 class TableDescriptor(Generic[T]):
     def __init__(self, model: Type[T], table_name: str | None = None):
         self.model = model
-        self.table_name = table_name
+        self.table_name = table_name or model.__tablename__
         self.table_model = None
         self.dao = None
 
