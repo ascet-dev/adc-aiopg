@@ -1,60 +1,39 @@
-from logging import getLogger
-from typing import Type, TypeVar, Generic
+from typing import Type
 
 from asyncpg import Pool
 from sqlalchemy import MetaData
-from sqlmodel import SQLModel
 
 from .entity_db_repository import PGDataAccessObject, PGPoolManager
 
-logger = getLogger(__name__)
 
-T = TypeVar('T', bound=SQLModel)
+class TableDescriptor:
+    def __init__(self, dao_class: Type[PGDataAccessObject]):
+        self.dao_class = dao_class
 
-
-class DAOMeta(type):
-    def __new__(mcs, name, bases, namespace, metadata: MetaData = None):
-        namespace['meta'] = metadata
-        for key, value in namespace.items():
-            if isinstance(value, TableDescriptor):
-                model_table = type(
-                    f'SQLModel{value.model.__name__}',
-                    (value.model,),
-                    {
-                        '__tablename__': value.table_name or key,
-                        'metadata': namespace['meta'],
-                    },
-                    table=True,
-                )
-
-                value.set_table_model(model_table)
-
-        return super().__new__(mcs, name, bases, namespace)
-
-
-class TableDescriptor(Generic[T]):
-    def __init__(self, model: Type[T], table_name: str | None = None):
-        self.model = model
-        self.table_name = table_name or model.__tablename__
-        self.table_model = None
-        self.dao = None
-
-    def set_table_model(self, table_model: Type[T]) -> None:
-        self.table_model = table_model
-
-    def __get__(self, obj, owner) -> PGDataAccessObject[T]:
+    def __get__(self, obj, owner) -> PGDataAccessObject:
         if not isinstance(obj, PostgresAccessLayer):
-            raise ValueError("ModelDescriptor can only be used with DBDAO instances")
-        if not self.table_model:
-            raise NotImplementedError("Use set_table_model first")
+            raise ValueError("TableDescriptor can only be used with PostgresAccessLayer instances")
 
-        if self.model not in obj.daos:
-            obj.daos[self.model] = PGDataAccessObject(self.table_model, db_pool=obj.pool)
-        return obj.daos[self.model]
+        if self.dao_class not in obj.daos:
+            obj.daos[self.dao_class] = self.dao_class(db_pool=obj.pool)
+        return obj.daos[self.dao_class]
 
 
-class PostgresAccessLayer(metaclass=DAOMeta):
+class PostgresAccessLayer:
     meta: MetaData
+
+    def __init_subclass__(cls, metadata: MetaData = None, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.meta = metadata
+        for key, value in vars(cls).items():
+            if isinstance(value, TableDescriptor):
+                # Isolate: each DAL gets its own DAO class copy
+                dao_copy = type(value.dao_class.__name__, (value.dao_class,), {'table_model': None})
+                value.dao_class = dao_copy
+                if not dao_copy.table_name:
+                    dao_copy.table_name = key
+                dao_copy.metadata = metadata
+                dao_copy.bind()
 
     def __init__(self, pool: Pool):
         self.pool = pool

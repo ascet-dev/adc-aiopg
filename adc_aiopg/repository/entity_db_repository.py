@@ -1,6 +1,8 @@
 from typing import Optional, Union, Mapping, List, TypeVar, Generic, Type
 from uuid import UUID
+from weakref import WeakValueDictionary
 from asyncpg import Pool
+from sqlalchemy import MetaData
 
 from adc_aiopg.types import Pagination, Paginated, Base
 from adc_aiopg.errors import RowNotFoundError
@@ -11,8 +13,66 @@ T = TypeVar('T', bound=Base)
 
 
 class PGDataAccessObject(PGPoolManager, Generic[T]):
-    def __init__(self, model: Type[T], db_pool: Pool, entity_versions: Type[T] | None = None):
-        self.model = model
+    model: Type[T] | None = None
+    metadata: MetaData | None = None
+    table_name: str | None = None
+    table_model: Type[T] | None = None
+    _bind_cache: WeakValueDictionary = WeakValueDictionary()
+
+    def __init_subclass__(cls, table_name: str = None, metadata: MetaData = None, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if table_name:
+            cls.table_name = table_name
+        if metadata:
+            cls.metadata = metadata
+
+    @classmethod
+    def from_model(
+        cls,
+        model: Type[T],
+        table_name: str | None = None,
+        metadata: MetaData | None = None,
+    ) -> 'Type[PGDataAccessObject[T]]':
+        """Create a DAO class from a model."""
+        table_name = table_name or getattr(model, '__tablename__', model.__name__)
+        return type(f'{model.__name__}DAO', (cls,), {'model': model},
+                    table_name=table_name, metadata=metadata)
+
+    @classmethod
+    def bind(cls):
+        if cls.table_model:
+            if cls.metadata and hasattr(cls.table_model, '__table__') \
+                    and cls.table_model.__table__.metadata is not cls.metadata:
+                raise ValueError(
+                    f"{cls.__name__} is already bound to a different MetaData. "
+                    "Create a new DAO class for each PostgresAccessLayer."
+                )
+            return
+        if not cls.table_name:
+            cls.table_name = getattr(cls.model, '__tablename__', cls.model.__name__)
+        if hasattr(cls.model, '__table__') and (not cls.metadata or cls.model.__table__.metadata is cls.metadata):
+            cls.table_model = cls.model
+        else:
+            cache_key = (cls.metadata, cls.table_name, cls.model)
+            cached = PGDataAccessObject._bind_cache.get(cache_key)
+            if cached:
+                cls.table_model = cached
+            else:
+                cls.table_model = type(
+                    f'SQLModel{cls.model.__name__}',
+                    (cls.model,),
+                    {
+                        '__tablename__': cls.table_name,
+                        'metadata': cls.metadata,
+                    },
+                    table=True,
+                )
+                PGDataAccessObject._bind_cache[cache_key] = cls.table_model
+
+    def __init__(self, db_pool: Pool, entity_versions: Type[T] | None = None):
+        if not self.table_model:
+            self.bind()
+        self.model = self.table_model
         self.entity_versions = entity_versions
         super().__init__(db_pool)
 
@@ -91,8 +151,7 @@ class PGDataAccessObject(PGPoolManager, Generic[T]):
         elif len(existing_rows) > 1:
             raise ValueError('Ambiguous value for %s' % kwargs)
 
-        row = await self.create(**kwargs)
-        return self.model(**row)
+        return await self.create(**kwargs)
 
     async def update_by_id(self, entity_id: Union[int, UUID], **payload) -> T:
         update_query = update_by_id(table=self.model, entity_id=entity_id, **payload)

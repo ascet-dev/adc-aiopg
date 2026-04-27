@@ -85,31 +85,57 @@ async with pm.transaction() as conn:
 
 ### PGDataAccessObject[T]
 
-Generic DAO поверх SQLModel. Полный CRUD с типизированными результатами.
+Generic DAO поверх SQLModel. Полный CRUD с типизированными результатами. Хранит конфигурацию таблицы: `model`, `metadata`, `table_name`, `table_model`.
 
 ```python
 from sqlmodel import Field
 from adc_aiopg import PGDataAccessObject
 from adc_aiopg.types import Base
 
-class User(Base, table=True):
-    __tablename__ = "users"
+class User(Base):
     id: int = Field(primary_key=True)
     name: str
     email: str
     active: bool = True
 
-dao = PGDataAccessObject[User](pool, User)
+# Быстрое создание DAO из модели
+UserDAO = PGDataAccessObject.from_model(User, "users", metadata=meta)
+user_dao = UserDAO(db_pool=pool)
 
 # CRUD
-user = await dao.create(name="Alice", email="alice@example.com")
-user = await dao.get_by_id(1)
-users = await dao.search(active=True)
-user = await dao.update_by_id(1, name="Alice Smith")
-await dao.delete_by_id(1)
+user = await user_dao.create(name="Alice", email="alice@example.com")
+user = await user_dao.get_by_id(1)
+users = await user_dao.search(active=True)
+user = await user_dao.update_by_id(1, name="Alice Smith")
+await user_dao.delete_by_id(1)
 
 # Soft delete (ставит archived=True)
-await dao.archive_by_id(1)
+await user_dao.archive_by_id(1)
+```
+
+#### Кастомный DAO
+
+Наследуйтесь от `PGDataAccessObject` и добавляйте свои методы:
+
+```python
+class UsersDAO(PGDataAccessObject[User], table_name="users"):
+    model = User
+
+    async def find_by_email(self, email: str) -> User | None:
+        results = await self.search(email=email)
+        return results[0] if results else None
+```
+
+Если модель уже является таблицей (`table=True`), `bind()` использует её как есть:
+
+```python
+class User(Base, table=True):
+    __tablename__ = "users"
+    id: int = Field(primary_key=True)
+    name: str
+
+class UsersDAO(PGDataAccessObject[User]):
+    model = User  # уже selectable — bind() не создаёт обёртку
 ```
 
 #### Фильтры
@@ -150,34 +176,50 @@ result: Paginated[User] = await dao.paginated_search(
 
 ### PostgresAccessLayer + TableDescriptor
 
-Декларативный слой доступа к БД. Группирует несколько DAO в одном объекте.
+Декларативный слой доступа к БД. Группирует несколько DAO в одном объекте. Передаёт `metadata` всем DAO и вызывает `bind()` при определении класса (для миграций).
 
 ```python
-from adc_aiopg import PostgresAccessLayer, TableDescriptor
+from adc_aiopg import PostgresAccessLayer, PGDataAccessObject, TableDescriptor
+from sqlalchemy import MetaData
 
-class User(Base, table=True):
-    __tablename__ = "users"
+meta = MetaData()
+
+class User(Base):
     id: int = Field(primary_key=True)
     name: str
 
-class Post(Base, table=True):
-    __tablename__ = "posts"
+class Post(Base):
     id: int = Field(primary_key=True)
     title: str
     author_id: int
 
-class DB(PostgresAccessLayer):
-    users = TableDescriptor(User)
-    posts = TableDescriptor(Post)
+# Простые DAO из моделей
+class DB(PostgresAccessLayer, metadata=meta):
+    users = TableDescriptor(PGDataAccessObject.from_model(User, "users"))
+    posts = TableDescriptor(PGDataAccessObject.from_model(Post, "posts"))
+
+# Кастомный DAO с дополнительными методами
+class UsersDAO(PGDataAccessObject[User], table_name="users"):
+    model = User
+
+    async def find_by_email(self, email: str) -> User | None:
+        results = await self.search(email=email)
+        return results[0] if results else None
+
+class DB(PostgresAccessLayer, metadata=meta):
+    users: UsersDAO = TableDescriptor(UsersDAO)
+    posts = TableDescriptor(PGDataAccessObject.from_model(Post, "posts"))
 
 # Использование
 db = DB(pool)
-user = await db.users.get_by_id(1)
+user = await db.users.find_by_email("alice@example.com")
 posts = await db.posts.search(author_id=1)
 
 # Произвольные запросы через PGPoolManager
 count = await db.pm.fetchval(select(func.count()).select_from(users))
 ```
+
+`TableDescriptor` — минимальный дескриптор, принимает DAO-класс. Если `table_name` не задан на DAO, используется имя атрибута как fallback.
 
 ### Версионирование таблиц
 
