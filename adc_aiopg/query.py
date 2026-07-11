@@ -1,4 +1,3 @@
-from datetime import datetime, UTC
 from logging import getLogger
 from typing import Optional, Union, List
 from uuid import UUID
@@ -66,7 +65,10 @@ def get_by_id(table: sa.Table, entity_id: Union[int, UUID]):
 
 def update(table: sa.Table, **kwargs):
     """Base query builder for update rows. Don't use it without filters!"""
-    return sa.update(table).values(updated=datetime.now(UTC), **kwargs).returning(table)
+    # DB clock, not the client one: keeps `updated` consistent with
+    # server_default timestamps set on INSERT.
+    kwargs.setdefault('updated', sa.func.timezone('utc', sa.func.now()))
+    return sa.update(table).values(**kwargs).returning(table)
 
 
 def update_by_id(table: sa.Table, entity_id: Union[int, UUID], **kwargs):

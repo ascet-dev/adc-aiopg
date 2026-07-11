@@ -1,4 +1,6 @@
 """Integration tests for PGDataAccessObject CRUD, filters, and pagination."""
+from datetime import datetime, UTC
+
 import pytest
 
 from adc_aiopg.errors import RowNotFoundError
@@ -123,6 +125,21 @@ class TestUpdate:
 
         updated = await dal.items.update({"active": False}, active=True)
         assert len(updated) == 2
+
+    async def test_update_sets_updated_from_db_clock(self, dal):
+        created = await dal.items.create(name="Old")
+        # now() is fixed for the whole transaction, so an exact match proves
+        # `updated` came from the DB clock, not from datetime.now() on the client.
+        async with dal.transaction() as con:
+            updated = await dal.items.update_by_id(created.id, name="New")
+            tx_now = await con.fetchval("SELECT now() AT TIME ZONE 'utc'")
+        assert updated.updated == tx_now
+
+    async def test_update_allows_explicit_updated(self, dal):
+        created = await dal.items.create(name="Old")
+        explicit = datetime(2020, 1, 2, 3, 4, 5, tzinfo=UTC)
+        updated = await dal.items.update_by_id(created.id, name="New", updated=explicit)
+        assert updated.updated == explicit
 
 
 # ---------------------------------------------------------------------------
