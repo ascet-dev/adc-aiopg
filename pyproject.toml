@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "adc-aiopg"
-version = "1.0.0"
+version = "1.1.0"
 description = "Async PostgreSQL client with connection pooling, query builder, and DAO pattern"
 readme = "README.md"
 requires-python = ">=3.11"

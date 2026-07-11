@@ -39,3 +39,19 @@ class PostgresAccessLayer:
         self.pool = pool
         self.daos = {}
         self.pm = PGPoolManager(pool)
+
+    def transaction(self):
+        """Transactional context for all DAOs of this access layer.
+
+        Every DAO call inside the block (standard CRUD and custom methods
+        going through fetch/fetchrow/fetchval) runs on one connection in one
+        transaction: commit on exit, rollback on exception.
+
+            async with dal.transaction():
+                wish = await dal.wishes.create(...)
+                await dal.wishlist_items.create(wish_id=wish.id, ...)
+
+        See PGPoolManager.transaction for nesting (savepoints) and
+        concurrency restrictions (no asyncio.gather inside the block).
+        """
+        return self.pm.transaction()
