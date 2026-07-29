@@ -283,10 +283,22 @@ class User(Base, table=True):
     name: str
 
 # Проекции
-UserPartial = User.partial()       # все поля Optional
+UserPartial = User.partial()       # все поля Optional и nullable
 UserNames = User.only("id", "name")  # только указанные поля
 UserNoEmail = User.exclude("email")  # все кроме указанных
 ```
+
+Все три проекции — самостоятельные DTO на базе `Base`. Это значит:
+
+- исходная модель не меняется (в частности, `partial()` не снимает обязательность
+  полей у `User`);
+- проекция **не является подклассом** исходной модели: `issubclass(UserPartial, User)`
+  → `False`, `isinstance`-проверки по исходной модели не пройдут;
+- проекция табличной модели — обычная схема без таблицы, её нельзя использовать
+  как маппинг;
+- `model_config` и валидаторы исходной модели не наследуются;
+- `only()` бросает `ValueError` на неизвестное имя поля, `exclude()` неизвестные
+  имена игнорирует.
 
 ### sqla_enum
 
